@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Reloj Zombie - Edición Interactiva Horizontal</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Fredoka:wght@400;500;600;700;800&family=Nunito:wght@600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            spooky: ['Creepster', 'cursive'],
+            fredoka: ['Fredoka', 'sans-serif'],
+            nunito: ['Nunito', 'sans-serif'],
+            digital: ['"Share Tech Mono"', 'monospace'],
+          },
+          colors: {
+            zombie: {
+              green: '#22c55e',
+              toxic: '#39ff14',
+              purple: '#2e1065',
+              darkpurple: '#130722',
+              orange: '#f97316',
+              pumpkin: '#ff6600',
+              bone: '#f3f4f6',
+              blood: '#dc2626'
+            }
+          },
+          animation: {
+            'bounce-gentle': 'bounceGentle 2s infinite',
+            'pulse-glow': 'pulseGlow 1.5s infinite alternate',
+            'float-spooky': 'floatSpooky 3s ease-in-out infinite',
+            'target-glow': 'targetGlow 1.2s infinite alternate'
+          },
+          keyframes: {
+            bounceGentle: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-3px)' }
+            },
+            pulseGlow: {
+              '0%': { opacity: '0.6', filter: 'drop-shadow(0 0 2px #39ff14)' },
+              '100%': { opacity: '1', filter: 'drop-shadow(0 0 8px #39ff14)' }
+            },
+            floatSpooky: {
+              '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+              '50%': { transform: 'translateY(-4px) rotate(2deg)' }
+            },
+            targetGlow: {
+              '0%': { boxShadow: '0 0 8px #39ff14, inset 0 0 8px #39ff14' },
+              '100%': { boxShadow: '0 0 22px #39ff14, inset 0 0 15px #39ff14' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    html, body {
+      width: 100vw;
+      width: 100dvw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      padding-left: env(safe-area-inset-left, 12px);
+      padding-right: env(safe-area-inset-right, 12px);
+      padding-top: env(safe-area-inset-top, 6px);
+      padding-bottom: env(safe-area-inset-bottom, 6px);
+    }
+
+    .spooky-card {
+      background: rgba(19, 7, 34, 0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 2px solid #7e22ce;
+      box-shadow: 0 8px 25px -5px rgba(126, 34, 206, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    /* Resaltado para el reloj activo */
+    .active-target-clock {
+      border-color: #39ff14 !important;
+      animation: targetGlow 1.2s infinite alternate !important;
+    }
+
+    .arrow-drag-handle {
+      cursor: grab;
+      transition: transform 0.15s ease;
+    }
+    .arrow-drag-handle:active {
+      cursor: grabbing;
+      transform: scale(1.35);
+    }
+
+    .dragging-active {
+      cursor: grabbing !important;
+    }
+
+    .spooky-btn-up {
+      background: linear-gradient(180deg, #39ff14 0%, #15803d 100%);
+      box-shadow: 0 2px 6px rgba(57, 255, 20, 0.4);
+    }
+    .spooky-btn-down {
+      background: linear-gradient(180deg, #ea580c 0%, #9a3412 100%);
+      box-shadow: 0 2px 6px rgba(234, 88, 12, 0.4);
+    }
+    .spooky-btn-up:active, .spooky-btn-down:active {
+      transform: scale(0.85);
+    }
+
+    /* ANIMACIÓN DE PARPADEO/TITILEO ESTÁTICO DE ESTRELLAS */
+    @keyframes twinkleStatic1 {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1.0; }
+    }
+    @keyframes twinkleStatic2 {
+      0%, 100% { opacity: 0.95; }
+      50% { opacity: 0.25; }
+    }
+    @keyframes twinkleStatic3 {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.9; }
+    }
+
+    .animate-twinkle-1 {
+      animation: twinkleStatic1 3.5s ease-in-out infinite;
+    }
+    .animate-twinkle-2 {
+      animation: twinkleStatic2 4.8s ease-in-out infinite;
+    }
+    .animate-twinkle-3 {
+      animation: twinkleStatic3 6.2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="font-nunito text-slate-100 flex flex-col justify-between relative overflow-hidden select-none">
+
+  <!-- FONDO DE CIELO GLOBAL CON ESTRELLAS MULTINIVEL ESTÁTICAS (DETRÁS DE LA INTERFAZ z-0) -->
+  <div id="global-sky-bg" class="fixed inset-0 pointer-events-none transition-colors duration-300 z-0">
+    <div id="sky-stars" class="absolute inset-0 pointer-events-none transition-opacity duration-300">
+      
+      <!-- Capa 1: Estrellas brillantes de tamaño medio -->
+      <div class="absolute inset-0 animate-twinkle-1" style="background-image: 
+        radial-gradient(2px 2px at 5% 8%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2.5px 2.5px at 15% 22%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 25% 68%, #e0f2fe, rgba(0,0,0,0)), 
+        radial-gradient(2.5px 2.5px at 35% 12%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 45% 82%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(3px 3px at 55% 28%, #fef08a, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 65% 72%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2.5px 2.5px at 75% 15%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 85% 58%, #e0f2fe, rgba(0,0,0,0)), 
+        radial-gradient(3px 3px at 95% 20%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 10% 90%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2.5px 2.5px at 30% 48%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 50% 5%, #e0f2fe, rgba(0,0,0,0)), 
+        radial-gradient(2.5px 2.5px at 70% 92%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 90% 78%, #ffffff, rgba(0,0,0,0));"></div>
+
+      <!-- Capa 2: Estrellas densas y finas -->
+      <div class="absolute inset-0 animate-twinkle-2" style="background-image: 
+        radial-gradient(1.5px 1.5px at 2% 42%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 12% 78%, #fef08a, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 22% 5%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 32% 88%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 42% 38%, #e0f2fe, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 52% 95%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 62% 18%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 72% 52%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 82% 8%, #fef08a, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 92% 62%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 18% 35%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 38% 62%, #e0f2fe, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 58% 75%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2px 2px at 78% 35%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 88% 95%, #ffffff, rgba(0,0,0,0));"></div>
+
+      <!-- Capa 3: Destellos de fondo adicionales -->
+      <div class="absolute inset-0 animate-twinkle-3" style="background-image: 
+        radial-gradient(2.5px 2.5px at 8% 60%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 20% 92%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2.5px 2.5px at 28% 25%, #fef08a, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 40% 55%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2.5px 2.5px at 48% 18%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 60% 65%, #e0f2fe, rgba(0,0,0,0)), 
+        radial-gradient(2.5px 2.5px at 68% 5%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 80% 82%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(2.5px 2.5px at 86% 38%, #ffffff, rgba(0,0,0,0)), 
+        radial-gradient(1.5px 1.5px at 96% 85%, #fef08a, rgba(0,0,0,0));"></div>
+
+    </div>
+  </div>
+
+  <!-- EFECTOS DE FONDO CORTESÍA DE AMBIENTACIÓN ZOMBIE -->
+  <div class="absolute top-0 left-0 text-2xl opacity-20 pointer-events-none z-10">🕸️</div>
+  <div class="absolute top-0 right-0 text-2xl opacity-20 pointer-events-none z-10">🕸️</div>
+  <div class="absolute bottom-2 left-3 text-lg opacity-30 animate-float-spooky pointer-events-none z-10">🦇</div>
+
+  <!-- 1. CABECERA COMPACTA (Capa superior z-10) -->
+  <header class="w-full flex items-center justify-between gap-2 px-2 py-1 z-10 flex-shrink-0 h-[42px]">
+    <div class="flex items-center gap-2 bg-zombie-darkpurple/95 px-2.5 py-1 rounded-xl border border-zombie-orange shadow-md">
+      <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-zombie-orange to-red-700 flex items-center justify-center text-base shadow-inner animate-bounce-gentle">
+        🧟
+      </div>
+      <div class="flex items-baseline gap-2">
+        <h1 class="font-spooky text-base text-zombie-toxic tracking-wide leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+          LA HORA ZOMBIE
+        </h1>
+        <span class="text-[9px] font-extrabold text-zombie-orange tracking-wider uppercase font-fredoka hidden sm:inline">Desafío Mágico</span>
+      </div>
+    </div>
+
+    <!-- Controles de Audio, Golosinas y Período -->
+    <div class="flex items-center gap-2">
+      
+      <!-- CONTROL DE VOLUMEN DE MÚSICA DE FONDO (musi.mp3) -->
+      <div class="flex items-center gap-1.5 bg-zombie-darkpurple/95 px-2.5 py-1 rounded-xl border border-purple-500 shadow-md">
+        <button id="music-toggle-btn" onclick="toggleMusicPlay()" title="Música ON/OFF" class="text-xs hover:scale-110 transition active:scale-95">
+          🎵
+        </button>
+        <input type="range" id="bg-volume-slider" min="0" max="1" step="0.05" value="0.4" oninput="onVolumeSliderChange(this.value)" class="w-12 sm:w-16 h-1.5 bg-purple-900 rounded-lg appearance-none cursor-pointer accent-zombie-toxic" title="Volumen de la música de fondo">
+      </div>
+
+      <!-- Marcador de Golosinas de Halloween -->
+      <div class="bg-zombie-darkpurple/95 px-3 py-1 rounded-xl border border-zombie-toxic flex items-center gap-1.5 shadow-md">
+        <span class="text-xs">🍬</span>
+        <span class="text-[9px] sm:text-[10px] font-fredoka font-bold text-slate-300">Golosinas conseguidas:</span>
+        <span id="score-counter" class="text-sm font-black font-fredoka text-zombie-toxic">0</span>
+      </div>
+
+      <div id="period-badge" class="flex items-center gap-1.5 bg-zombie-darkpurple/95 px-2.5 py-1 rounded-xl border border-purple-500 shadow-md text-xs font-fredoka font-bold text-amber-300">
+        <span id="period-icon" class="text-sm">🌕</span>
+        <span id="period-text" class="text-[10px] font-spooky tracking-wider text-zombie-toxic">Noche</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. CONTENEDOR PRINCIPAL DOS COLUMNAS (Capa superior z-10) -->
+  <main class="flex-1 w-full flex flex-row items-center justify-between gap-2 px-2 py-1 min-h-0 overflow-hidden z-10">
+
+    <!-- COLUMNA IZQUIERDA: RELOJ ANALÓGICO + ESCENA DEL CIELO -->
+    <section class="flex-1 h-full max-w-[48%] min-w-0 flex flex-col justify-center items-center">
+      <div id="card-analog" class="spooky-card rounded-2xl p-2 w-full h-full flex flex-col items-center justify-between relative shadow-xl overflow-hidden transition-all duration-300">
+        
+        <!-- Leyenda -->
+        <div class="w-full flex items-center justify-between text-[10px] font-black px-1 font-fredoka flex-shrink-0">
+          <span class="text-purple-300 uppercase tracking-wider font-bold text-[9px] sm:text-[10px] flex items-center gap-1">
+            <span>🕰️</span> Reloj Analógico
+          </span>
+          <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1 bg-red-950/80 px-1.5 py-0.5 rounded-full text-red-300 border border-red-600 text-[9px]">
+              <span class="w-2 h-2 rounded-full bg-red-500"></span>
+              <span>Hora</span>
+            </div>
+            <div class="flex items-center gap-1 bg-emerald-950/80 px-1.5 py-0.5 rounded-full text-emerald-300 border border-emerald-500 text-[9px]">
+              <span class="w-2 h-2 rounded-full bg-zombie-toxic"></span>
+              <span>Min</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ESCENA SUPERIOR DEL CIELO (SOL / LUNA AMPLIADO) -->
+        <div id="sky-box" class="w-full h-12 sm:h-14 rounded-xl relative overflow-hidden flex-shrink-0 border border-purple-500/30 my-1 bg-transparent">
+          <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 200 50" preserveAspectRatio="none">
+            <path d="M 18 42 Q 100 12 182 42" fill="none" stroke="rgba(255,255,255,0.3)" stroke-dasharray="3,3" stroke-width="1.2"/>
+          </svg>
+
+          <div id="celestial-body" class="absolute text-3xl sm:text-4xl transition-all duration-150 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none filter drop-shadow-[0_0_8px_rgba(255,255,255,0.9)]" style="left: 14%; top: 84%;">
+            ☀️
+          </div>
+        </div>
+
+        <!-- ESFERA DEL RELOJ ANALÓGICO -->
+        <div id="analog-clock-face" class="relative w-full flex-1 flex items-center justify-center min-h-0 py-0.5 transition-opacity duration-300">
+          <svg id="clock-svg" viewBox="0 0 400 400" class="h-full w-auto max-w-full max-h-full aspect-square drop-shadow-[0_0_12px_rgba(126,34,206,0.6)] touch-none select-none">
+            <defs>
+              <filter id="shadow-hand" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="2" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.8"/>
+              </filter>
+
+              <radialGradient id="moonFaceGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#fef08a"/>
+                <stop offset="70%" stop-color="#fde047"/>
+                <stop offset="92%" stop-color="#ca8a04"/>
+                <stop offset="100%" stop-color="#854d0e"/>
+              </radialGradient>
+
+              <linearGradient id="boneGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stop-color="#991b1b"/>
+                <stop offset="100%" stop-color="#f87171"/>
+              </linearGradient>
+
+              <linearGradient id="clawGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stop-color="#15803d"/>
+                <stop offset="100%" stop-color="#39ff14"/>
+              </linearGradient>
+            </defs>
+
+            <circle cx="200" cy="200" r="195" fill="#3b0764" stroke="#581c87" stroke-width="4"/>
+            <circle cx="200" cy="200" r="186" fill="#f97316" />
+            <circle cx="200" cy="200" r="176" fill="url(#moonFaceGrad)" stroke="#15803d" stroke-width="8" />
+
+            <path d="M 200 24 L 200 376 M 24 200 L 376 200 M 75 75 L 325 325 M 75 325 L 325 75" stroke="#ca8a04" stroke-width="1.5" opacity="0.35" />
+            <circle cx="200" cy="200" r="120" fill="none" stroke="#ca8a04" stroke-width="1.5" opacity="0.3" />
+            <circle cx="200" cy="200" r="60" fill="none" stroke="#ca8a04" stroke-width="1.5" opacity="0.3" />
+
+            <g id="clock-ticks"></g>
+            <g id="clock-numbers" font-family="Creepster, cursive" font-weight="400" text-anchor="middle" dominant-baseline="central"></g>
+
+            <!-- HORA (Hueso) -->
+            <g id="group-hour-hand" filter="url(#shadow-hand)">
+              <rect x="191" y="115" width="18" height="85" rx="9" fill="url(#boneGrad)" stroke="#450a0a" stroke-width="2" />
+              <polygon points="200,80 174,120 226,120" fill="url(#boneGrad)" stroke="#450a0a" stroke-width="2" stroke-linejoin="round" />
+              <circle id="target-hour" cx="200" cy="88" r="22" fill="#dc2626" stroke="#ffffff" stroke-width="4" class="arrow-drag-handle" />
+              <text x="200" y="89" font-family="Fredoka, sans-serif" font-size="9" font-weight="900" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central" pointer-events="none">HORA</text>
+            </g>
+
+            <!-- MINUTO (Garra) -->
+            <g id="group-minute-hand" filter="url(#shadow-hand)">
+              <rect x="193" y="60" width="14" height="140" rx="7" fill="url(#clawGrad)" stroke="#14532d" stroke-width="2" />
+              <polygon points="200,28 178,68 222,68" fill="url(#clawGrad)" stroke="#14532d" stroke-width="2" stroke-linejoin="round" />
+              <circle id="target-minute" cx="200" cy="38" r="21" fill="#22c55e" stroke="#ffffff" stroke-width="4" class="arrow-drag-handle" />
+              <text x="200" y="39" font-family="Fredoka, sans-serif" font-size="8" font-weight="900" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central" pointer-events="none">MIN</text>
+            </g>
+
+            <circle cx="200" cy="200" r="16" fill="#18181b" filter="url(#shadow-hand)" />
+            <circle cx="200" cy="200" r="10" fill="#ef4444" />
+            <circle cx="200" cy="200" r="5" fill="#000000" />
+            <circle cx="198" cy="198" r="2" fill="#ffffff" />
+          </svg>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- COLUMNA DERECHA: RELOJ DIGITAL + MISIÓN + BOTÓN LISTO -->
+    <section class="flex-1 h-full max-w-[50%] min-w-0 flex flex-col justify-between gap-1.5">
+      
+      <!-- RELOJ DIGITAL TOXIC -->
+      <div id="card-digital" class="spooky-card rounded-2xl p-2 flex flex-col items-center justify-between relative flex-1 min-h-0 transition-all duration-300">
+        <div class="w-full flex items-center justify-between text-[9px] sm:text-[10px] font-black text-purple-300 uppercase font-fredoka px-1">
+          <span class="flex items-center gap-1"><span class="text-xs">📱</span> Reloj Digital</span>
+          <span id="format-indicator" class="text-zombie-toxic font-bold font-spooky text-xs">Modo 24 Horas</span>
+        </div>
+
+        <!-- CONTENEDOR DE DÍGITOS Y FLECHAS -->
+        <div class="w-full my-auto bg-slate-950/95 text-zombie-toxic font-digital rounded-xl p-1.5 sm:p-2 shadow-[inset_0_0_12px_rgba(57,255,20,0.3)] border-2 border-purple-900 flex items-center justify-center gap-1 sm:gap-2">
+          
+          <!-- H1 -->
+          <div class="flex flex-col items-center">
+            <button onclick="adjustDigit('H1', 1)" title="Sumar 10 Horas" class="spooky-btn-up w-7 h-5 sm:w-8 sm:h-5.5 text-slate-950 rounded flex items-center justify-center border border-green-300 font-bold">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 fill-current"><polygon points="12,5 3,18 21,18"/></svg>
+            </button>
+            <span id="digit-h1" class="text-2xl sm:text-3xl font-extrabold my-0 text-center w-6 sm:w-7 drop-shadow-[0_0_6px_#39ff14]">1</span>
+            <button onclick="adjustDigit('H1', -1)" title="Restar 10 Horas" class="spooky-btn-down w-7 h-5 sm:w-8 sm:h-5.5 text-white rounded flex items-center justify-center border border-orange-300 font-bold">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 fill-current"><polygon points="12,19 3,6 21,6"/></svg>
+            </button>
+          </div>
+
+          <!-- H2 -->
+          <div class="flex flex-col items-center">
+            <button onclick="adjustDigit('H2', 1)" title="Sumar 1 Hora" class="spooky-btn-up w-7 h-5 sm:w-8 sm:h-5.5 text-slate-950 rounded flex items-center justify-center border border-green-300 font-bold">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 fill-current"><polygon points="12,5 3,18 21,18"/></svg>
+            </button>
+            <span id="digit-h2" class="text-2xl sm:text-3xl font-extrabold my-0 text-center w-6 sm:w-7 drop-shadow-[0_0_6px_#39ff14]">5</span>
+            <button onclick="adjustDigit('H2', -1)" title="Restar 1 Hora" class="spooky-btn-down w-7 h-5 sm:w-8 sm:h-5.5 text-white rounded flex items-center justify-center border border-orange-300 font-bold">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 fill-current"><polygon points="12,19 3,6 21,6"/></svg>
+            </button>
+          </div>
+
+          <!-- DOS PUNTOS : -->
+          <div class="text-xl sm:text-2xl font-extrabold animate-pulse-glow px-0.5 text-zombie-toxic flex items-center">
+            :
+          </div>
+
+          <!-- M1 -->
+          <div class="flex flex-col items-center">
+            <button onclick="adjustDigit('M1', 1)" title="Sumar 10 Minutos" class="spooky-btn-up w-7 h-5 sm:w-8 sm:h-5.5 text-slate-950 rounded flex items-center justify-center border border-green-300 font-bold">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 fill-current"><polygon points="12,5 3,18 21,18"/></svg>
+            </button>
+            <span id="digit-m1" class="text-2xl sm:text-3xl font-extrabold my-0 text-center w-6 sm:w-7 drop-shadow-[0_0_6px_#39ff14]">3</span>
+            <button onclick="adjustDigit('M1', -1)" title="Restar 10 Minutos" class="spooky-btn-down w-7 h-5 sm:w-8 sm:h-5.5 text-white rounded flex items-center justify-center border border-orange-300 font-bold">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 fill-current"><polygon points="12,19 3,6 21,6"/></svg>
+            </button>
+          </div>
+
+          <!-- M2 -->
+          <div class="flex flex-col items-center">
+            <button onclick="adjustDigit('M2', 1)" title="Sumar 1 Minuto" class="spooky-btn-up w-7 h-5 sm:w-8 sm:h-5.5 text-slate-950 rounded flex items-center justify-center border border-green-300 font-bold">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 fill-current"><polygon points="12,5 3,18 21,18"/></svg>
+            </button>
+            <span id="digit-m2" class="text-2xl sm:text-3xl font-extrabold my-0 text-center w-6 sm:w-7 drop-shadow-[0_0_6px_#39ff14]">0</span>
+            <button onclick="adjustDigit('M2', -1)" title="Restar 1 Minuto" class="spooky-btn-down w-7 h-5 sm:w-8 sm:h-5.5 text-white rounded flex items-center justify-center border border-orange-300 font-bold">
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 fill-current"><polygon points="12,19 3,6 21,6"/></svg>
+            </button>
+          </div>
+
+          <div id="ampm-badge" class="hidden ml-1 px-1 py-0.5 rounded bg-purple-950 text-zombie-orange font-fredoka text-[9px] font-black border border-zombie-orange">
+            PM
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-1.5 w-full mt-1">
+          <button id="btn-toggle-mode" onclick="toggleFormatMode()" class="py-1 px-2 rounded-lg bg-gradient-to-r from-purple-700 to-indigo-800 hover:from-purple-600 hover:to-indigo-700 text-amber-300 font-fredoka font-black text-[10px] sm:text-xs shadow-md active:scale-95 transition border border-purple-400 flex items-center justify-center gap-1">
+            <span>🔄 12H / 24H</span>
+          </button>
+
+          <button id="btn-toggle-ampm" onclick="toggleAMPM()" class="py-1 px-2 rounded-lg bg-zombie-darkpurple hover:bg-purple-900 text-zombie-toxic font-fredoka font-bold text-[10px] sm:text-xs transition border border-zombie-toxic/60 active:scale-95 flex items-center justify-center gap-1">
+            <span>👻 AM ↔ PM</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- PANEL DE MISIÓN PRINCIPAL -->
+      <div class="spooky-card rounded-xl px-3 py-2 border-2 border-zombie-toxic flex flex-col justify-between flex-shrink-0 bg-purple-950/90 shadow-lg">
+        
+        <div class="flex items-center justify-between gap-1 mb-1 border-b border-purple-800/80 pb-1">
+          <div class="flex items-center gap-1.5">
+            <span class="text-base">💀</span>
+            <span class="font-spooky text-sm sm:text-base text-zombie-toxic tracking-wide">MISIÓN ZOMBIE:</span>
+          </div>
+          <button onclick="speakCurrentMission()" title="Escuchar de nuevo" class="bg-purple-800 hover:bg-purple-700 text-amber-300 px-2 py-0.5 rounded-lg border border-purple-400 font-fredoka text-[11px] font-bold flex items-center gap-1 active:scale-90 transition">
+            <span>🔊 Escuchar</span>
+          </button>
+        </div>
+
+        <div class="min-h-[44px] flex items-center justify-center text-center px-1 py-0.5">
+          <p id="mission-instruction-text" class="font-fredoka text-sm sm:text-base font-extrabold text-amber-200 leading-snug tracking-wide">
+            Cargando misión zombie...
+          </p>
+        </div>
+
+        <button onclick="checkAnswer()" class="w-full mt-1.5 py-1.5 px-3 rounded-xl bg-gradient-to-r from-zombie-toxic via-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-slate-950 font-fredoka font-black text-sm tracking-wider uppercase shadow-lg shadow-zombie-toxic/30 border border-green-200 active:scale-95 transition flex items-center justify-center gap-2">
+          <span>✨ ¡LISTO! COMPROBAR HORA</span>
+        </button>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- LÓGICA DEL JUEGO Y AUDIO DUCKING CON musi.mp3 -->
+  <script>
+    let totalMinutes = 930;       // Hora actual interactiva (15:30)
+    let targetTotalMinutes = 0;   // Hora objetivo de la misión
+    let targetClockType = 'analog'; // 'analog' | 'digital'
+    let is24HourMode = true;
+    let score = 0;
+
+    let activeDragHand = null;
+    let lastPointerAngleRad = 0;
+
+    /* =========================================================================
+       GESTOR DE MÚSICA MP3 Y AUDIO DUCKING (ATENUACIÓN DE VOLUMEN)
+       ========================================================================= */
+    const bgMusic = new Audio('musi.mp3');
+    bgMusic.loop = true;
+
+    let userMusicVolume = 0.4;  // Volumen deseado por el usuario (40%)
+    bgMusic.volume = userMusicVolume;
+
+    let isMusicPlaying = false;
+    let fadeTimer = null;
+
+    // Desbloquear audio al primer toque/clic por restricción del navegador
+    function initAudioGesture() {
+      if (!isMusicPlaying) {
+        bgMusic.play().then(() => {
+          isMusicPlaying = true;
+          document.getElementById('music-toggle-btn').textContent = userMusicVolume === 0 ? '🔇' : '🎵';
+        }).catch(err => {
+          // El navegador esperará al próximo clic
+        });
+      }
+    }
+
+    ['click', 'touchstart', 'pointerdown'].forEach(evt => {
+      window.addEventListener(evt, function handler() {
+        initAudioGesture();
+        window.removeEventListener(evt, handler);
+      }, { once: true });
+    });
+
+    // Transición suave de volumen de música en milisegundos
+    function fadeMusicTo(targetVolume, durationMs, onComplete) {
+      if (fadeTimer) clearInterval(fadeTimer);
+
+      const startVolume = bgMusic.volume;
+      const startTime = Date.now();
+
+      fadeTimer = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / durationMs, 1);
+
+        bgMusic.volume = startVolume + (targetVolume - startVolume) * progress;
+
+        if (progress >= 1) {
+          clearInterval(fadeTimer);
+          fadeTimer = null;
+          if (onComplete) onComplete();
+        }
+      }, 30);
+    }
+
+    function onVolumeSliderChange(val) {
+      userMusicVolume = parseFloat(val);
+      if (!fadeTimer && isMusicPlaying) {
+        bgMusic.volume = userMusicVolume;
+      }
+      document.getElementById('music-toggle-btn').textContent = userMusicVolume === 0 ? '🔇' : '🎵';
+    }
+
+    function toggleMusicPlay() {
+      initAudioGesture();
+      if (bgMusic.paused) {
+        bgMusic.play().then(() => {
+          isMusicPlaying = true;
+          document.getElementById('music-toggle-btn').textContent = userMusicVolume === 0 ? '🔇' : '🎵';
+        });
+      } else {
+        bgMusic.pause();
+        isMusicPlaying = false;
+        document.getElementById('music-toggle-btn').textContent = '🔇';
+      }
+    }
+
+    /* REPRODUCTOR DE VOZ CON DUCKING DE MÚSICA (1 SEGUNDO ANTES Y DESPUÉS) */
+    function speakTextWithDucking(text, onEndCallback) {
+      if (!('speechSynthesis' in window)) return;
+
+      window.speechSynthesis.cancel(); // Cancelar locuciones previas
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-ES';
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+
+      // 1. Atenuación progresiva de la música durante 1000ms (1 segundo exacto)
+      fadeMusicTo(0.02, 1000, () => {
+        // 2. Al terminar el segundo de bajada, comienza la voz hablada
+        window.speechSynthesis.speak(utterance);
+      });
+
+      const restoreMusic = () => {
+        // 3. Al terminar la voz, se restaura la música suavemente durante 1000ms
+        fadeMusicTo(userMusicVolume, 1000);
+        if (onEndCallback) onEndCallback();
+      };
+
+      utterance.onend = restoreMusic;
+      utterance.onerror = restoreMusic;
+    }
+
+    /* =========================================================================
+       INICIALIZACIÓN DE LA APLICACIÓN
+       ========================================================================= */
+    window.addEventListener('DOMContentLoaded', () => {
+      renderClockFace();
+      setupPointerEvents();
+      updateClockDisplay();
+
+      setTimeout(() => {
+        generateNewMission();
+      }, 400);
+    });
+
+    /* =========================================================================
+       SISTEMA DE MISIÓN
+       ========================================================================= */
+    function generateNewMission() {
+      const randomHour = Math.floor(Math.random() * 24);
+      const randomMinuteStep = Math.floor(Math.random() * 12);
+      const randomMinute = randomMinuteStep * 5;
+
+      targetTotalMinutes = randomHour * 60 + randomMinute;
+      targetClockType = Math.random() < 0.5 ? 'analog' : 'digital';
+
+      updateTargetClockHighlight();
+
+      const clockName = targetClockType === 'analog' ? 'reloj analógico' : 'reloj digital';
+      const timeInWords = getTimeInSpanish(randomHour, randomMinute);
+
+      const instructionText = `Pon en el ${clockName.toUpperCase()}: ${timeInWords}`;
+      document.getElementById('mission-instruction-text').textContent = instructionText;
+
+      speakCurrentMission();
+    }
+
+    function updateTargetClockHighlight() {
+      const cardAnalog = document.getElementById('card-analog');
+      const analogClockFace = document.getElementById('analog-clock-face');
+      const cardDigital = document.getElementById('card-digital');
+      const digitalButtons = cardDigital.querySelectorAll('button');
+      const targetHour = document.getElementById('target-hour');
+      const targetMinute = document.getElementById('target-minute');
+
+      if (targetClockType === 'analog') {
+        cardAnalog.classList.add('active-target-clock');
+        analogClockFace.classList.remove('opacity-40');
+        targetHour.style.pointerEvents = 'auto';
+        targetMinute.style.pointerEvents = 'auto';
+
+        cardDigital.classList.remove('active-target-clock');
+        cardDigital.classList.add('opacity-40');
+        digitalButtons.forEach(btn => {
+          btn.disabled = true;
+          btn.classList.add('pointer-events-none', 'cursor-not-allowed');
+        });
+      } else {
+        cardDigital.classList.add('active-target-clock');
+        cardDigital.classList.remove('opacity-40');
+        digitalButtons.forEach(btn => {
+          btn.disabled = false;
+          btn.classList.remove('pointer-events-none', 'cursor-not-allowed');
+        });
+
+        cardAnalog.classList.remove('active-target-clock');
+        analogClockFace.classList.add('opacity-40');
+        targetHour.style.pointerEvents = 'none';
+        targetMinute.style.pointerEvents = 'none';
+      }
+    }
+
+    function speakCurrentMission() {
+      const clockName = targetClockType === 'analog' ? 'reloj analógico' : 'reloj digital';
+      const hour = Math.floor(targetTotalMinutes / 60);
+      const min = targetTotalMinutes % 60;
+      const timeInWords = getTimeInSpanish(hour, min);
+
+      const speechText = `Pon en el ${clockName} las ${timeInWords.replace('Son las ', '').replace('Es la ', '')}.`;
+
+      speakTextWithDucking(speechText);
+    }
+
+    /* =========================================================================
+       VALIDACIÓN Y RESPUESTA DEL JUGADOR
+       ========================================================================= */
+    function checkAnswer() {
+      const currentRoundedMin = Math.round(totalMinutes) % 1440;
+      let isCorrect = false;
+
+      if (targetClockType === 'analog') {
+        const target12 = targetTotalMinutes % 720;
+        const current12 = currentRoundedMin % 720;
+        isCorrect = (target12 === current12);
+      } else {
+        isCorrect = (targetTotalMinutes === currentRoundedMin);
+      }
+
+      if (isCorrect) {
+        score++;
+        document.getElementById('score-counter').textContent = score;
+        
+        const instructionText = document.getElementById('mission-instruction-text');
+        instructionText.textContent = "🎉 ¡CORRECTO! ¡Calamar Zombie contento! 🍬";
+
+        speakTextWithDucking("¡Excelente! ¡Has conseguido una golosina de Halloween!", () => {
+          setTimeout(() => {
+            generateNewMission();
+          }, 800);
+        });
+
+      } else {
+        const instructionText = document.getElementById('mission-instruction-text');
+        const oldText = instructionText.textContent;
+        instructionText.textContent = "❌ ¡Casi! Revisa tu hora e inténtalo de nuevo.";
+
+        speakTextWithDucking("¡Casi! Revisa la hora e inténtalo de nuevo.", () => {
+          setTimeout(() => {
+            instructionText.textContent = oldText;
+          }, 1200);
+        });
+      }
+    }
+
+    /* =========================================================================
+       DIBUJO DE LA ESFERA DEL RELOJ ANALÓGICO
+       ========================================================================= */
+    function renderClockFace() {
+      const ticksGroup = document.getElementById('clock-ticks');
+      const numbersGroup = document.getElementById('clock-numbers');
+      
+      ticksGroup.innerHTML = '';
+      numbersGroup.innerHTML = '';
+
+      const cx = 200;
+      const cy = 200;
+
+      for (let i = 0; i < 60; i++) {
+        const angleRad = (i * 6 - 90) * (Math.PI / 180);
+        const isFiveMin = (i % 5 === 0);
+        
+        const innerR = isFiveMin ? 148 : 158;
+        const outerR = 166;
+        const strokeW = isFiveMin ? 4 : 2;
+        const strokeColor = isFiveMin ? '#f97316' : '#22c55e';
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', cx + outerR * Math.cos(angleRad));
+        line.setAttribute('y1', cy + outerR * Math.sin(angleRad));
+        line.setAttribute('x2', cx + innerR * Math.cos(angleRad));
+        line.setAttribute('y2', cy + innerR * Math.sin(angleRad));
+        line.setAttribute('stroke', strokeColor);
+        line.setAttribute('stroke-width', strokeW);
+        line.setAttribute('stroke-linecap', 'round');
+        ticksGroup.appendChild(line);
+      }
+
+      for (let num = 1; num <= 12; num++) {
+        const angleRad = (num * 30 - 90) * (Math.PI / 180);
+        const nx = cx + 130 * Math.cos(angleRad);
+        const ny = cy + 130 * Math.sin(angleRad);
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', nx);
+        circle.setAttribute('cy', ny);
+        circle.setAttribute('r', '17');
+        circle.setAttribute('fill', '#1e1b4b');
+        circle.setAttribute('stroke', (num % 2 === 0) ? '#f97316' : '#39ff14');
+        circle.setAttribute('stroke-width', '3');
+        circle.setAttribute('filter', 'url(#shadow-hand)');
+        numbersGroup.appendChild(circle);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', nx);
+        text.setAttribute('y', ny + 2);
+        text.setAttribute('font-size', '20');
+        text.setAttribute('fill', '#fef08a');
+        text.textContent = num;
+        numbersGroup.appendChild(text);
+      }
+    }
+
+    /* =========================================================================
+       CONTROL TÁCTIL Y DE RATÓN EN EL RELOJ ANALÓGICO
+       ========================================================================= */
+    function setupPointerEvents() {
+      const targetHour = document.getElementById('target-hour');
+      const targetMinute = document.getElementById('target-minute');
+
+      targetHour.addEventListener('pointerdown', (e) => startDrag(e, 'hour', targetHour));
+      targetMinute.addEventListener('pointerdown', (e) => startDrag(e, 'minute', targetMinute));
+
+      window.addEventListener('pointermove', onDrag);
+      window.addEventListener('pointerup', stopDrag);
+      window.addEventListener('pointercancel', stopDrag);
+    }
+
+    function getPointerAngleRad(e) {
+      const clockSvg = document.getElementById('clock-svg');
+      const rect = clockSvg.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+
+      return Math.atan2(e.clientY - cy, e.clientX - cx);
+    }
+
+    function startDrag(e, handType, targetElem) {
+      if (targetClockType !== 'analog') return;
+
+      e.preventDefault();
+      if (targetElem && targetElem.setPointerCapture) {
+        try { targetElem.setPointerCapture(e.pointerId); } catch(err){}
+      }
+
+      activeDragHand = handType;
+      lastPointerAngleRad = getPointerAngleRad(e);
+      document.body.classList.add('dragging-active');
+    }
+
+    function onDrag(e) {
+      if (!activeDragHand || targetClockType !== 'analog') return;
+
+      const currentAngleRad = getPointerAngleRad(e);
+      let deltaRad = currentAngleRad - lastPointerAngleRad;
+
+      if (deltaRad > Math.PI) deltaRad -= Math.PI * 2;
+      if (deltaRad < -Math.PI) deltaRad += Math.PI * 2;
+
+      const deltaDeg = deltaRad * (180 / Math.PI);
+      lastPointerAngleRad = currentAngleRad;
+
+      if (activeDragHand === 'minute') {
+        const deltaMinutes = deltaDeg / 6;
+        totalMinutes = (totalMinutes + deltaMinutes + 14400) % 1440;
+      } 
+      else if (activeDragHand === 'hour') {
+        const deltaMinutes = deltaDeg * 2;
+        totalMinutes = (totalMinutes + deltaMinutes + 14400) % 1440;
+      }
+
+      updateClockDisplay();
+    }
+
+    function stopDrag() {
+      if (!activeDragHand) return;
+      activeDragHand = null;
+      document.body.classList.remove('dragging-active');
+    }
+
+    /* =========================================================================
+       CONTROLES DE DÍGITOS Y FORMATO (DIGITAL)
+       ========================================================================= */
+    function adjustDigit(digitName, direction) {
+      if (targetClockType !== 'digital') return;
+
+      let deltaInMinutes = 0;
+
+      if (digitName === 'H1') deltaInMinutes = direction * 600;
+      else if (digitName === 'H2') deltaInMinutes = direction * 60;
+      else if (digitName === 'M1') deltaInMinutes = direction * 10;
+      else if (digitName === 'M2') deltaInMinutes = direction * 1;
+
+      totalMinutes = (totalMinutes + deltaInMinutes + 14400) % 1440;
+      updateClockDisplay();
+    }
+
+    function toggleAMPM() {
+      if (targetClockType !== 'digital') return;
+      totalMinutes = (totalMinutes + 720) % 1440;
+      updateClockDisplay();
+    }
+
+    function toggleFormatMode() {
+      if (targetClockType !== 'digital') return;
+      is24HourMode = !is24HourMode;
+      document.getElementById('format-indicator').textContent = is24HourMode ? 'Modo 24 Horas' : 'Modo 12H (AM/PM)';
+      updateClockDisplay();
+    }
+
+    /* =========================================================================
+       SISTEMA DE CIELO DINÁMICO Y MOVIMIENTO DEL ASTRO
+       ========================================================================= */
+    function updateSkyAndCelestialBody() {
+      const globalSkyBg = document.getElementById('global-sky-bg');
+      const skyStars = document.getElementById('sky-stars');
+      const celestialBody = document.getElementById('celestial-body');
+      
+      if (!celestialBody) return;
+
+      const mins = (totalMinutes + 1440) % 1440;
+
+      let lightFactor = 0;
+      if (mins >= 480 && mins <= 1080) {
+        lightFactor = 1.0;
+      } else if (mins > 1080 && mins < 1200) {
+        lightFactor = 1.0 - (mins - 1080) / 120;
+      } else if (mins >= 360 && mins < 480) {
+        lightFactor = (mins - 360) / 120;
+      } else {
+        lightFactor = 0.0;
+      }
+
+      const r = Math.round(5 + lightFactor * (56 - 5));
+      const g = Math.round(11 + lightFactor * (189 - 11));
+      const b = Math.round(20 + lightFactor * (248 - 20));
+
+      if (globalSkyBg) {
+        globalSkyBg.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+      }
+
+      if (skyStars) {
+        skyStars.style.opacity = (1 - lightFactor * 0.75).toFixed(2);
+      }
+
+      const isDay = (mins >= 480 && mins < 1200);
+      let progress = 0;
+
+      if (isDay) {
+        progress = (mins - 480) / 720;
+        celestialBody.textContent = '☀️';
+      } else {
+        const nightMins = (mins >= 1200) ? (mins - 1200) : (mins + 240);
+        progress = nightMins / 720;
+        celestialBody.textContent = '🌕';
+      }
+
+      progress = Math.max(0, Math.min(1, progress));
+
+      let astroOpacity = 1.0;
+      if (progress < 0.08) {
+        astroOpacity = progress / 0.08;
+      } else if (progress > 0.92) {
+        astroOpacity = (1.0 - progress) / 0.08;
+      }
+      celestialBody.style.opacity = astroOpacity.toFixed(2);
+
+      const posX = 14 + progress * 72;
+      const posY = 84 - 54 * Math.sin(Math.PI * progress);
+
+      celestialBody.style.left = `${posX}%`;
+      celestialBody.style.top = `${posY}%`;
+    }
+
+    /* =========================================================================
+       ACTUALIZACIÓN Y SINCRONIZACIÓN VISUAL DE LA INTERFAZ
+       ========================================================================= */
+    function updateClockDisplay() {
+      const minutes = Math.floor(totalMinutes % 60);
+      const hours24 = Math.floor(totalMinutes / 60) % 24;
+
+      const minAngle = (totalMinutes % 60) * 6;
+      const hourAngle = (totalMinutes % 720) * 0.5;
+
+      document.getElementById('group-minute-hand').setAttribute('transform', `rotate(${minAngle}, 200, 200)`);
+      document.getElementById('group-hour-hand').setAttribute('transform', `rotate(${hourAngle}, 200, 200)`);
+
+      let displayHoursStr = "";
+      const ampmBadge = document.getElementById('ampm-badge');
+
+      if (is24HourMode) {
+        displayHoursStr = hours24.toString().padStart(2, '0');
+        ampmBadge.classList.add('hidden');
+      } else {
+        const hours12 = (hours24 % 12) === 0 ? 12 : (hours24 % 12);
+        const period = hours24 >= 12 ? 'PM' : 'AM';
+
+        displayHoursStr = hours12.toString().padStart(2, '0');
+        ampmBadge.textContent = period;
+        ampmBadge.classList.remove('hidden');
+      }
+
+      const displayMinutesStr = minutes.toString().padStart(2, '0');
+
+      document.getElementById('digit-h1').textContent = displayHoursStr[0];
+      document.getElementById('digit-h2').textContent = displayHoursStr[1];
+      document.getElementById('digit-m1').textContent = displayMinutesStr[0];
+      document.getElementById('digit-m2').textContent = displayMinutesStr[1];
+
+      const periodIcon = document.getElementById('period-icon');
+      const periodText = document.getElementById('period-text');
+
+      if (hours24 >= 6 && hours24 < 14) {
+        periodIcon.textContent = '🎃';
+        periodText.textContent = 'Día';
+      } else if (hours24 >= 14 && hours24 < 20) {
+        periodIcon.textContent = '🦇';
+        periodText.textContent = 'Tarde';
+      } else {
+        periodIcon.textContent = '🌕';
+        periodText.textContent = 'Noche';
+      }
+
+      updateSkyAndCelestialBody();
+    }
+
+    /* =========================================================================
+       TRADUCCIÓN A LENGUAJE NATURAL
+       ========================================================================= */
+    function getTimeInSpanish(h24, m) {
+      const nums = ["", "una", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce"];
+
+      const h12 = (h24 % 12) === 0 ? 12 : (h24 % 12);
+      const nextH12 = (h12 % 12) + 1;
+
+      let prefix = (h12 === 1) ? "Es la" : "Son las";
+      let nextPrefix = (nextH12 === 1) ? "Es la" : "Son las";
+
+      let periodStr = "";
+      if (h24 >= 6 && h24 < 12) periodStr = "de la mañana";
+      else if (h24 >= 12 && h24 < 20) periodStr = "de la tarde";
+      else periodStr = "de la noche";
+
+      let timeText = "";
+      if (m === 0) {
+        timeText = `${prefix} ${nums[h12]} en punto`;
+      } else if (m === 15) {
+        timeText = `${prefix} ${nums[h12]} y cuarto`;
+      } else if (m === 30) {
+        timeText = `${prefix} ${nums[h12]} y media`;
+      } else if (m === 45) {
+        timeText = `${nextPrefix} ${nums[nextH12]} menos cuarto`;
+      } else if (m < 30) {
+        timeText = `${prefix} ${nums[h12]} y ${m}`;
+      } else {
+        let diff = 60 - m;
+        timeText = `${nextPrefix} ${nums[nextH12]} menos ${diff}`;
+      }
+
+      return `${timeText} ${periodStr}`;
+    }
+  </script>
+</body>
+</html>
